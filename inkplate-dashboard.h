@@ -8,6 +8,7 @@
 #include "WiFi.h"                //Include library for WiFi
 #include "driver/rtc_io.h"       //ESP32 library used for deep sleep and RTC wake up pins
 #include "PubSubClient.h"        //mqtt connection
+
 Inkplate display(INKPLATE_3BIT);
 
 #define uS_TO_S_FACTOR 1000000 // Conversion factor for micro seconds to seconds
@@ -15,7 +16,7 @@ Inkplate display(INKPLATE_3BIT);
 
 const char *ssid = ""; // Your WiFi SSID
 const char *password = ""; // Your WiFi password
-const char *mqtt_server = "192.168.0.34";
+const char *mqtt_server = "192.168.1.200";
 
 WiFiClient espClient;
 PubSubClient client(espClient);
@@ -30,17 +31,21 @@ void connectWifi()
     {
         delay(500);
         Serial.print(".");
-    } 
+    }
+    Serial.print(display.isConnected()); 
 }
 
 void displayImage()
 {
     // display image on screen
     display.begin();        // Init Inkplate library (you should call this function ONLY ONCE)
+    display.clearDisplay(); // Clear frame buffer of display
+    display.display();      // Put clear image on display
+    // display.setRotation(3);  // Display rotated to portrait mode for testing
 
     Serial.println("\nWiFi OK! Downloading...");
 
-    if (!display.drawImage("http://hass-screenshot-nginx.nuc.local:81/output.jpg", 0, 0, false, false))
+    if (!display.drawImage("http://192.168.1.71:8080/cover.jpg", 0, 0, false, false))
     {
         Serial.println("Image open error");
     }
@@ -83,14 +88,22 @@ void sendMqttMsg()
     
     int temperature;
     float voltage;
+    char buffer[256];
+
+    StaticJsonDocument<200> inkplate; // Declare static Json Document
+    
     temperature = display.readTemperature(); // Read temperature from on-board temperature sensor
-    voltage = display.readBattery(); // Read battery voltage (NOTE: Doe to ESP32 ADC accuracy, you should calibrate the ADC!)
-    String msg = "inkplate temperature=" + String(temperature) + ",voltage=" + String(voltage);
-    Serial.println(msg);
-    // Convert the value to a char array
-    char *tab2 = new char[msg.length() + 1];
-    strcpy(tab2, msg.c_str());
-    client.publish("home/inkplate", tab2);
+    voltage = display.readBattery(); // Read battery voltage (NOTE: Due to ESP32 ADC accuracy, you should calibrate the ADC!)
+    
+    inkplate["device"] = "Inkplate"; // name the device
+    inkplate["temperature"] = temperature; // add inkplate temperature 
+    inkplate["voltage"] = voltage; // add inkplate battery voltage
+
+    serializeJson(inkplate, buffer);
+
+    Serial.println(buffer);
+
+    client.publish("home-assistant/inkplate", buffer);
 }
 
 void goToSleep()
