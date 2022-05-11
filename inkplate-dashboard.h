@@ -8,6 +8,7 @@
 #include "WiFi.h"                //Include library for WiFi
 #include "driver/rtc_io.h"       //ESP32 library used for deep sleep and RTC wake up pins
 #include "PubSubClient.h"        //mqtt connection
+#include "ArduinoJson.h"         //Arduino JSON Library for generating JSON formats for mqtt client
 
 Inkplate display(INKPLATE_3BIT);
 
